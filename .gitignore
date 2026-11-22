@@ -1,0 +1,6 @@
+# never upload: converted game files, your own paths, temp files
+Converted/
+settings.json
+nup_cache/
+__pycache__/
+*.pyc

@@ -1,0 +1,130 @@
+==========================================================================
+  BodiesOfTruth V1.3  -  CREDITS AND THIRD-PARTY NOTICES
+==========================================================================
+
+BodiesOfTruth is free software, licensed under the GNU General Public
+License, version 3 or (at your option) any later version. The full text
+is in LICENSE.txt.
+
+  Copyright (C) 2026 BodiesOfTruth contributors
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See LICENSE.txt.
+
+No third-party code is bundled in this folder. The projects below are
+either installed separately by the setup scripts, used only to build or
+test the code patches, or were consulted as references while the tool was
+being made. Each project keeps its own license; please see its website or
+repository for the full terms.
+
+
+--------------------------------------------------------------------------
+  1. NEEDED TO RUN THE TOOL  (installed by install_requirements.*)
+--------------------------------------------------------------------------
+
+  Python ................... Python Software Foundation
+                             PSF License Agreement
+                             https://www.python.org
+
+  NumPy .................... NumPy Developers
+                             BSD-3-Clause
+                             https://numpy.org
+
+  python-zstandard ......... Gregory Szorc
+     (zstandard)             BSD-3-Clause
+                             https://github.com/indygreg/python-zstandard
+     It includes the Zstandard library by Meta Platforms, Inc. (Yann
+     Collet and contributors), dual-licensed BSD-3-Clause or
+     GPL-2.0-only.  https://github.com/facebook/zstd
+
+  Tkinter / Tcl/Tk ......... Python Software Foundation; Tcl/Tk by the
+     (GUI only)              Tcl Core Team and contributors
+                             PSF License (Tkinter); Tcl/Tk license
+                             (BSD-style)
+                             https://www.tcl-lang.org
+
+  tkinterdnd2 .............. Optional: only used, if installed, for
+     (optional, GUI only)    drag-and-drop onto the GUI window.
+                             https://github.com/Eliav2/tkinterdnd2
+
+
+--------------------------------------------------------------------------
+  2. USED TO BUILD AND TEST THE LENS CODE PATCH  (patch\*\src, test\)
+--------------------------------------------------------------------------
+
+  LLVM / Clang / LLD ....... LLVM Project
+                             Apache-2.0 WITH LLVM-exception
+                             https://llvm.org
+     Assembles and links the lens code (build_patch_v11.py,
+     build_module_v11.py, verify_equiv.py).
+
+  Unicorn Engine ........... Nguyen Anh Quynh, Dang Hoang Vu and
+                             contributors
+                             GPL-2.0
+                             https://www.unicorn-engine.org
+  Keystone Engine .......... Nguyen Anh Quynh and contributors
+                             GPL-2.0
+                             https://www.keystone-engine.org
+     Both are used only by the differential tests in
+     patch\codecave_recomp\test (not by the converter).
+
+
+--------------------------------------------------------------------------
+  3. REFERENCES AND TOOLS USED DURING DEVELOPMENT
+--------------------------------------------------------------------------
+
+  Eglantine ................ Djihads80 and contributors
+                             https://github.com/Djihads80/Eglantine
+     lib\nup.py reads .nup game archives following the container layout
+     in Eglantine's src/core/file_sys/nup_container.cpp.
+
+  BfresLibrary ............. KillzXGaming (based on Syroot's
+                             NintenTools.Bfres, MIT)
+                             https://github.com/KillzXGaming/BfresLibrary
+  oead ..................... Leoetlino and zeldamods contributors
+                             GPL-2.0-or-later
+                             https://github.com/zeldamods/oead
+     lib\sdict.py builds Nintendo ResDic dictionaries the same way these
+     libraries do.
+
+  Switch Toolbox ........... KillzXGaming and contributors
+                             GPL-3.0
+                             https://github.com/KillzXGaming/Switch-Toolbox
+     Used to inspect models, materials and shader options, and to export
+     reference textures while mapping the BFRES and BNTX formats.
+
+  Blender .................. Blender Foundation
+                             GPL-2.0-or-later
+                             https://www.blender.org
+     Used to review meshes, bones and weights during development.
+
+  Lichii ................... zortos293 and contributors
+                             GPL-3.0
+                             https://github.com/zortos293/Lichii
+  Fritchii ................. Frizti
+                             https://github.com/Frizti/Fritchii
+  Eden ..................... Eden emulator contributors
+     Emulators the converted mods and the lens code module (Emulation
+     platform) were tested on.
+
+  Longshot / Hookshot ...... NotRexed and contributors
+     Recompiled PC versions the Recomp code patch was written and tested
+     for. The tests in patch\codecave_recomp\test model the behaviour of
+     Longshot's a64-kit lift.
+
+
+--------------------------------------------------------------------------
+  4. GAME CONTENT AND TRADEMARKS
+--------------------------------------------------------------------------
+
+  No game files, game code or game assets are included. The tool reads
+  game files from your own copy of the game, and index\npc_index.json is
+  a list of model, texture and actor names generated from those files by
+  index\build_index.py. The GPL covers this tool only; it does not grant
+  any rights to the game or to the outfit mods you convert, which stay
+  under their own authors' terms.
+
+
+If you are the author of a project used here and something is missing or
+wrong, please get in touch so it can be corrected.
