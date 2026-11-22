@@ -141,6 +141,9 @@ Open a command prompt in this folder and type one of these:
 
 ## GOOD TO KNOW
 
+- **LIMITATION:** mods that affect the player character can not yet
+  be converted.
+  
 - **Which mods work:** mods that replace an NPC's model file with a
   modified version of that same NPC. Mods may add bones, physics or
   textures, or remove clothing pieces.
