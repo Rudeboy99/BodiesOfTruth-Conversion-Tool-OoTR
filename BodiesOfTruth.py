@@ -18,7 +18,7 @@ models, so LensPatch only changes when the platform changes. Copy BOTH folders i
 disable the original input mods and any other lens/IPS mod.
 --platform: emulation (Fritchii: lens code as a separate code module, exefs/subsdk1),
 recomp (Hookshot/Longshot) or native (official hardware): lens code in main's code cave. Asked if omitted.
-See README.txt."""
+See README.md."""
 import sys, os, json, struct, shutil, hashlib, zlib, argparse, time, re, glob, textwrap, atexit
 sys.dont_write_bytecode=True            # no __pycache__ (it would embed this PC's folder paths)
 HERE=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,os.path.join(HERE,'lib'))
