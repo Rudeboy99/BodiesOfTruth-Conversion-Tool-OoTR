@@ -3,7 +3,7 @@ OoTRemake mod converter and lens patch for custom outfit switching effects
 
 ## LENS OUTFIT CONVERTER (BodiesOfTruth V1.3) Emulation/Recomp
 
-Turns an NPC outfit mod into a SECOND OUTFIT that only appears through
+Turns an NPC(NOT PLAYER) outfit mod into a SECOND OUTFIT that only appears through
 the Lens of Truth.
 
 | | |
