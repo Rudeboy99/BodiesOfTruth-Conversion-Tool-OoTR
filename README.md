@@ -30,8 +30,8 @@ Linux, and writes exactly what the command line writes (it runs
 
 3. Run `BodiesOfTruth.bat` or `BodiesOfTruth_linux.sh` and select your
    game file folder. The game must be on update 131072. Selected
-   folder is saved in `settings.json`. Delete `settings.json` to choose
-   a change the default folder.
+   folder is saved in `settings.json`. Delete `settings.json` to change
+   the default folder.
 
 4. Select which platform you play on:
    1. Emulation (Fritchii)
