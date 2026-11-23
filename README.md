@@ -7,7 +7,6 @@ Turns an NPC(NOT PLAYER) outfit mod into a SECOND OUTFIT that only appears throu
 the Lens of Truth.
 
 | | |
-|---|---|
 | **Without the lens** | the NPC wears their normal outfit. |
 | **Through the lens** | the NPC wears the modded outfit. |
 
