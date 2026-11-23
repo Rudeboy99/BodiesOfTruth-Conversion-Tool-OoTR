@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-"""BodiesOfTruth V1.3 GUI: a window around the BodiesOfTruth converter (BodiesOfTruth.py).
+"""BodiesOfTruth V1.3.1 GUI: a window around the BodiesOfTruth converter (BodiesOfTruth.py).
 
 The GUI does no converting itself. It runs BodiesOfTruth.py with the options picked in the window, shows its output
 live, and reads the converted mod's manifest (bodiesoftruth_manifest.json) and report (BodiesOfTruth_report.txt) to show
@@ -10,15 +10,17 @@ command line.
 
   Windows: double-click BodiesOfTruth_GUI.bat (or drag a mod folder onto it)
   Linux:   bash BodiesOfTruth_GUI_linux.sh
+Both set up Python packages by themselves on first run (lib/bootstrap.py).
 """
 import os, sys, json, glob, re, subprocess, threading, queue, time
 sys.dont_write_bytecode = True            # no __pycache__ in the tool folder (it would embed this PC's folder paths)
 
-GUI_VERSION = 'BodiesOfTruth V1.3'
-HERE = os.path.dirname(os.path.abspath(__file__))
+GUI_VERSION = 'BodiesOfTruth V1.3.1'
+HERE = os.path.dirname(os.path.abspath(__file__))          # app/: the program files
+ROOT = os.path.dirname(HERE)                                # the tool's top folder: settings.json, Converted
 CONVERTER = os.path.join(HERE, 'BodiesOfTruth.py')
-SETTINGS = os.path.join(HERE, 'settings.json')
-CONVERTED = os.path.join(HERE, 'Converted')
+SETTINGS = os.path.join(ROOT, 'settings.json')
+CONVERTED = os.path.join(ROOT, 'Converted')
 INDEX = os.path.join(HERE, 'index', 'npc_index.json')
 DEFAULT_NAME = 'BodiesOfTruth - Custom'
 LENS_NAME = 'LensPatch'
@@ -194,7 +196,7 @@ def start_process(cmd):
     kw = {}
     if os.name == 'nt': kw['creationflags'] = 0x08000000           # CREATE_NO_WINDOW
     # stdin closed: if the converter ever asks a question it fails at once instead of hanging the window
-    return subprocess.Popen(cmd, cwd=HERE, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+    return subprocess.Popen(cmd, cwd=ROOT, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace', bufsize=1, **kw)
 
 def split_ansi(line, colour=None):
@@ -259,6 +261,7 @@ if tk:
             self.update_game_status(); self.update_platform_note(); self.refresh_preview(); self.refresh_converted()
             root.protocol('WM_DELETE_WINDOW', self.on_close)
             root.after(80, self.poll)
+            root.after(300, self.check_packages)
             self.enable_drop()
 
         # ---------------- look
@@ -322,7 +325,7 @@ if tk:
             r = self.root
             top = ttk.Frame(r, padding=(16, 12, 16, 6)); top.pack(fill='x')
             ttk.Label(top, text='Bodies of Truth', style='Title.TLabel').pack(side='left')
-            ttk.Label(top, text='V1.3', style='Ver.TLabel').pack(side='left', padx=(10, 0), pady=(4, 0))
+            ttk.Label(top, text='V1.3.1', style='Ver.TLabel').pack(side='left', padx=(10, 0), pady=(4, 0))
             ttk.Label(top, text='   NPC outfit mod  ->  second outfit seen only through the Lens of Truth',
                       style='Sub.TLabel').pack(side='left', pady=(5, 0))
 
@@ -496,7 +499,7 @@ if tk:
 
         # ---------------- pickers
         def pick_game(self):
-            d = filedialog.askdirectory(title='Folder holding your game files (base + updates)', initialdir=self.v_game.get() or HERE)
+            d = filedialog.askdirectory(title='Folder holding your game files (base + updates)', initialdir=self.v_game.get() or ROOT)
             if d: self.v_game.set(os.path.normpath(d))
         def pick_nup(self):
             f = filedialog.askopenfilename(title='Game .nup file', filetypes=[('NUP game file', '*.nup'), ('All files', '*.*')])
@@ -504,10 +507,21 @@ if tk:
         def pick_input(self):
             cur = clean_path(self.v_input.get())
             d = filedialog.askdirectory(title='Mod folder (or folder of mods) to convert',
-                                        initialdir=os.path.dirname(cur) if cur else os.path.dirname(HERE))
+                                        initialdir=os.path.dirname(cur) if cur else os.path.dirname(ROOT))
             if d: self.v_input.set(os.path.normpath(d))
         def open(self, p):
             if not open_path(p): messagebox.showinfo(GUI_VERSION, 'Not there yet:\n' + p)
+
+        def check_packages(self):
+            """the converter's packages must be importable by the Python the GUI runs it with"""
+            def work():
+                try: ok = subprocess.run([python_for_child(), '-c', 'import numpy, zstandard'], stdin=subprocess.DEVNULL,
+                                         capture_output=True, **({'creationflags': 0x08000000} if os.name == 'nt' else {})).returncode == 0
+                except OSError: ok = False
+                if not ok: self.q.put(('line', '\033[91mThe converter packages (numpy, zstandard) are missing. Close this window and start the tool with '
+                                       + ('BodiesOfTruth_GUI.bat' if os.name == 'nt' else 'bash BodiesOfTruth_GUI_linux.sh')
+                                       + ': it sets them up by itself.\033[0m'))
+            threading.Thread(target=work, daemon=True).start()
 
         def enable_drop(self):
             """drag-and-drop onto the window when tkinterdnd2 is installed (optional)"""

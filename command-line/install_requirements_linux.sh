@@ -7,7 +7,7 @@
 # Python 3.12+ gets the exact tested versions from requirements.txt; 3.10/3.11 get numpy 2.2.6
 # (also tested; numpy 2.5 needs 3.12). Run it again any time to repair the environment.
 # To remove everything it installed: delete ~/.local/share/BodiesOfTruth
-DIR=$(cd "$(dirname "$0")" && pwd) || exit 1
+DIR=$(cd "$(dirname "$0")/.." && pwd) || exit 1   # the tool folder
 VENV="${XDG_DATA_HOME:-$HOME/.local/share}/BodiesOfTruth/venv"
 pause() { if [ -t 0 ] && [ -t 1 ]; then read -rp "Press Enter to continue..."; fi; }   # only when someone is at the terminal
 fail() { echo "$1"; pause; exit 1; }
@@ -45,7 +45,7 @@ if ! make_venv; then
 fi
 
 if python3 -c 'import sys; sys.exit(sys.version_info < (3, 12))'; then
-    "$VENV/bin/python" -m pip install --disable-pip-version-check -r "$DIR/requirements.txt"
+    "$VENV/bin/python" -m pip install --disable-pip-version-check -r "$DIR/app/requirements.txt"
 else
     echo "Python $PYVER: installing numpy 2.2.6 (the newest tested version for this Python; numpy 2.5.4 needs 3.12+)."
     "$VENV/bin/python" -m pip install --disable-pip-version-check "numpy==2.2.6" "zstandard==0.25.0"
@@ -64,6 +64,7 @@ if ! "$VENV/bin/python" -c 'import tkinter' 2>/dev/null; then
     "$VENV/bin/python" -c 'import tkinter' 2>/dev/null && echo "Tkinter OK."
 fi
 
+python3 "$DIR/app/lib/bootstrap.py" setup >/dev/null || echo "Note: lib/bootstrap.py could not record the setup; the launchers will redo it on first start."
 echo "Done. Installed into $VENV (delete ~/.local/share/BodiesOfTruth to remove it)."
-echo "Run:  bash BodiesOfTruth_GUI_linux.sh   (window)   or   bash BodiesOfTruth_linux.sh   (command line)"
+echo "Run:  bash BodiesOfTruth_GUI_linux.sh   (window)   or   bash command-line/BodiesOfTruth_linux.sh   (command line)"
 pause

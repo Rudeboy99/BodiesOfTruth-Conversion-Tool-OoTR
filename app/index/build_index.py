@@ -16,7 +16,7 @@ def _update(g):   # game files folder (base + updates) or an update romfs -> upd
         if os.path.isfile(os.path.join(c,'Pack','ZsDic.pack.zs')) and glob.glob(os.path.join(c,'System','Resource','*.Product.111.*')): return c
     return None
 def _remembered():
-    try: return json.load(open(os.path.join(HERE,'..','settings.json'),encoding='utf-8')).get('game_files')
+    try: return json.load(open(os.path.join(HERE,'..','..','settings.json'),encoding='utf-8')).get('game_files')
     except (OSError,ValueError,AttributeError): return None
 ROMFS=_update(sys.argv[1] if len(sys.argv)>1 else (os.environ.get('OOT_GAME_FILES') or _remembered()))
 if not ROMFS: sys.exit('usage: python index/build_index.py <game files folder holding base and updates>')

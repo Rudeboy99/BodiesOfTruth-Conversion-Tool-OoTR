@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-"""BodiesOfTruth V1.3: turn ordinary NPC outfit mods into Lens of Truth outfit swaps.
+"""BodiesOfTruth V1.3.1: turn ordinary NPC outfit mods into Lens of Truth outfit swaps.
 
   python BodiesOfTruth.py <input> [-o OUTPUT_MOD | --name NAME] [--game-files GAME_FILES] [--platform P] [--no-patch] [--dry-run]
   python BodiesOfTruth.py --list   [-o OUTPUT_MOD]          show what the output mod already contains
@@ -22,20 +22,21 @@ See README.md."""
 import sys, os, json, struct, shutil, hashlib, zlib, argparse, time, re, glob, textwrap, atexit
 sys.dont_write_bytecode=True            # no __pycache__ (it would embed this PC's folder paths)
 HERE=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,os.path.join(HERE,'lib'))
+ROOT=os.path.dirname(HERE)   # the tool's top folder (V1.3.1: program files live in app/, user files at the top)
 try:
     import numpy as np
     from zsx import Zs, sarc_files
 except ImportError as e:
     sys.exit('Missing Python package (%s). Run the one-time setup first:\n'
-             '  Windows: install_requirements.bat (and start the converter with BodiesOfTruth.bat)\n'
-             '  Linux:   bash install_requirements_linux.sh (and start the converter with bash BodiesOfTruth_linux.sh)'%e)
+             '  Windows: start the tool with BodiesOfTruth_GUI.bat (or command-line\\BodiesOfTruth.bat); it sets them up\n'
+             '  Linux:   start the tool with bash BodiesOfTruth_GUI_linux.sh (or bash command-line/BodiesOfTruth_linux.sh)'%e)
 import bfres_info, restbl, nup
 from retarget_core import u64, skel
 from lens_add_shapes import add_shapes
-VERSION='BodiesOfTruth V1.3'
-SETTINGS=os.path.join(HERE,'settings.json')   # kept in the tool folder (delete it before sharing the tool)
-CONVERTED=os.path.join(HERE,'Converted')
-NUP_CACHE=os.path.join(HERE,'nup_cache')   # game files copied out of a .nup on demand; deleted when the tool exits
+VERSION='BodiesOfTruth V1.3.1'
+SETTINGS=os.path.join(ROOT,'settings.json')   # kept in the tool folder (delete it before sharing the tool)
+CONVERTED=os.path.join(ROOT,'Converted')
+NUP_CACHE=os.path.join(ROOT,'nup_cache')   # game files copied out of a .nup on demand; deleted when the tool exits
 def clear_nup_cache():
     nup.close_all()
     if os.path.isdir(NUP_CACHE): shutil.rmtree(NUP_CACHE,ignore_errors=True)
@@ -85,8 +86,8 @@ a32=lambda n:(n+31)&~31
 OUT_LINES=[]
 def show(p):
     """path as printed/saved: relative to the tool folder, or just the folder name (no personal paths)"""
-    a=os.path.abspath(p); h=os.path.join(HERE,'')
-    return os.path.relpath(a,HERE) if a.startswith(h) else os.path.basename(a.rstrip('\\/')) or a
+    a=os.path.abspath(p); h=os.path.join(ROOT,'')
+    return os.path.relpath(a,ROOT) if a.startswith(h) else os.path.basename(a.rstrip('\\/')) or a
 def mod_name(rd):
     rd=os.path.abspath(rd); return os.path.basename(os.path.dirname(rd)) if os.path.basename(rd).lower()=='romfs' else os.path.basename(rd)
 def find_update(g):
@@ -224,7 +225,7 @@ class Ctx:
         self.romfs=romfs; self.base=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(romfs))),'base','romfs')
         self.zs=Zs(romfs)
         ip=os.path.join(HERE,'index','npc_index.json')
-        if not os.path.isfile(ip): sys.exit('index/npc_index.json missing: run  python index/build_index.py  first')
+        if not os.path.isfile(ip): sys.exit('app/index/npc_index.json missing: run  python app/index/build_index.py  first')
         self.index=json.load(open(ip,encoding='utf-8')); self.models=self.index['models']
         self.vanilla_rt=bytes(self.zs.read(self.game(RESTBL)))
     def game(self,rel):

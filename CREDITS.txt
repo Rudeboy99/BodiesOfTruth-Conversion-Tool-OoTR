@@ -50,7 +50,7 @@ repository for the full terms.
 
 
 --------------------------------------------------------------------------
-  2. USED TO BUILD AND TEST THE LENS CODE PATCH  (patch\*\src, test\)
+  2. USED TO BUILD AND TEST THE LENS CODE PATCH  (app\patch\*\src, test\)
 --------------------------------------------------------------------------
 
   LLVM / Clang / LLD ....... LLVM Project
@@ -67,7 +67,7 @@ repository for the full terms.
                              GPL-2.0
                              https://www.keystone-engine.org
      Both are used only by the differential tests in
-     patch\codecave_recomp\test (not by the converter).
+     app\patch\codecave_recomp\test (not by the converter).
 
 
 --------------------------------------------------------------------------
@@ -76,7 +76,7 @@ repository for the full terms.
 
   Eglantine ................ Djihads80 and contributors
                              https://github.com/Djihads80/Eglantine
-     lib\nup.py reads .nup game archives following the container layout
+     app\lib\nup.py reads .nup game archives following the container layout
      in Eglantine's src/core/file_sys/nup_container.cpp.
 
   BfresLibrary ............. KillzXGaming (based on Syroot's
@@ -85,7 +85,7 @@ repository for the full terms.
   oead ..................... Leoetlino and zeldamods contributors
                              GPL-2.0-or-later
                              https://github.com/zeldamods/oead
-     lib\sdict.py builds Nintendo ResDic dictionaries the same way these
+     app\lib\sdict.py builds Nintendo ResDic dictionaries the same way these
      libraries do.
 
   Switch Toolbox ........... KillzXGaming and contributors
@@ -110,7 +110,7 @@ repository for the full terms.
 
   Longshot / Hookshot ...... NotRexed and contributors
      Recompiled PC versions the Recomp code patch was written and tested
-     for. The tests in patch\codecave_recomp\test model the behaviour of
+     for. The tests in app\patch\codecave_recomp\test model the behaviour of
      Longshot's a64-kit lift.
 
 
@@ -119,9 +119,9 @@ repository for the full terms.
 --------------------------------------------------------------------------
 
   No game files, game code or game assets are included. The tool reads
-  game files from your own copy of the game, and index\npc_index.json is
+  game files from your own copy of the game, and app\index\npc_index.json is
   a list of model, texture and actor names generated from those files by
-  index\build_index.py. The GPL covers this tool only; it does not grant
+  app\index\build_index.py. The GPL covers this tool only; it does not grant
   any rights to the game or to the outfit mods you convert, which stay
   under their own authors' terms.
 
