@@ -1,7 +1,7 @@
 # BodiesOfTruth-Conversion-Tool-OoTR
 OoTRemake mod converter and lens patch for custom outfit switching effects
 
-## LENS OUTFIT CONVERTER (BodiesOfTruth V1.3.2) Emulation/Recomp
+## LENS OUTFIT CONVERTER (BodiesOfTruth V1.3.3) Emulation/Recomp
 
 Turns an NPC(NOT PLAYER) outfit mod into a SECOND OUTFIT that only appears through
 the Lens of Truth.
@@ -21,6 +21,9 @@ Linux, and writes exactly what the command line writes (it runs
 **V1.3.1: one-click start.** Double-click `BodiesOfTruth_GUI.bat` (Windows) or
 run `bash BodiesOfTruth_GUI_linux.sh` (Linux). The first start sets everything
 up by itself (about a minute, internet needed); later starts open straight away.
+
+**V1.3.3: big meshes fixed.** Vanilla pieces with more than 65,535 vertices (e.g. the
+Great Fairy's leaf dress) were dropped from the lens-off outfit; they are now kept.
 
 
 ## 1. USAGE

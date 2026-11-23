@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-"""BodiesOfTruth V1.3.2 GUI: a window around the BodiesOfTruth converter (BodiesOfTruth.py).
+"""BodiesOfTruth V1.3.3 GUI: a window around the BodiesOfTruth converter (BodiesOfTruth.py).
 
 The GUI does no converting itself. It runs BodiesOfTruth.py with the options picked in the window, shows its output
 live, and reads the converted mod's manifest (bodiesoftruth_manifest.json) and report (BodiesOfTruth_report.txt) to show
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib
 import gamefiles                           # the converter's own game-files finder (standard library only)
 sys.dont_write_bytecode = True            # no __pycache__ in the tool folder (it would embed this PC's folder paths)
 
-GUI_VERSION = 'BodiesOfTruth V1.3.2'
+GUI_VERSION = 'BodiesOfTruth V1.3.3'
 HERE = os.path.dirname(os.path.abspath(__file__))          # app/: the program files
 ROOT = os.path.dirname(HERE)                                # the tool's top folder: settings.json, Converted
 CONVERTER = os.path.join(HERE, 'BodiesOfTruth.py')
@@ -321,7 +321,7 @@ if tk:
             r = self.root
             top = ttk.Frame(r, padding=(16, 12, 16, 6)); top.pack(fill='x')
             ttk.Label(top, text='Bodies of Truth', style='Title.TLabel').pack(side='left')
-            ttk.Label(top, text='V1.3.2', style='Ver.TLabel').pack(side='left', padx=(10, 0), pady=(4, 0))
+            ttk.Label(top, text='V1.3.3', style='Ver.TLabel').pack(side='left', padx=(10, 0), pady=(4, 0))
             ttk.Label(top, text='   NPC outfit mod  ->  second outfit seen only through the Lens of Truth',
                       style='Sub.TLabel').pack(side='left', pady=(5, 0))
 

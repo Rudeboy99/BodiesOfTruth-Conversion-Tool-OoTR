@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-# BodiesOfTruth V1.3.2 GUI (Linux). First run sets up the tool's packages by itself.
+# BodiesOfTruth V1.3.3 GUI (Linux). First run sets up the tool's packages by itself.
 #   double-click (file manager) or: bash BodiesOfTruth_GUI_linux.sh ["path/to/mod"]
 # Opened without a terminal (double-click): if setup is done, the window opens straight away; otherwise a
 # terminal opens to show the setup or any error, and closes by itself once the window is up.

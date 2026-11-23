@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-"""BodiesOfTruth V1.3.2: turn ordinary NPC outfit mods into Lens of Truth outfit swaps.
+"""BodiesOfTruth V1.3.3: turn ordinary NPC outfit mods into Lens of Truth outfit swaps.
 
   python BodiesOfTruth.py <input> [-o OUTPUT_MOD | --name NAME] [--game-files GAME_FILES] [--platform P] [--no-patch] [--dry-run]
   python BodiesOfTruth.py --list   [-o OUTPUT_MOD]          show what the output mod already contains
@@ -33,7 +33,7 @@ except ImportError as e:
 import bfres_info, restbl, nup, gamefiles
 from retarget_core import u64, skel
 from lens_add_shapes import add_shapes
-VERSION='BodiesOfTruth V1.3.2'
+VERSION='BodiesOfTruth V1.3.3'
 SETTINGS=os.path.join(ROOT,'settings.json')   # kept in the tool folder (delete it before sharing the tool)
 CONVERTED=os.path.join(ROOT,'Converted')
 NUP_CACHE=os.path.join(ROOT,'nup_cache')   # game files copied out of a .nup on demand; deleted when the tool exits
@@ -357,7 +357,7 @@ def build_model(ctx,job,textures,tex_names):
             try:
                 _,nv,lods,ks=raw_shape(db,b['index'])
                 if ks: raise ValueError('has key shapes')
-                if max(max(l) for l in lods if l)>=65536: raise ValueError('more than 65535 vertices')
+                if any(l and max(l)-min(l)>=65536 for l in lods): raise ValueError('a LOD spans more than 65535 vertices')
                 vr=vb_cache.get(n) or remap_indices(raw_shape(db,b['index'])[0],b,mmap)
                 bd=shape_bounds(db,b['index'],bmap,len(lods))
             except ValueError as e: log('   ! %s: %s; vanilla piece dropped'%(n,e)); continue

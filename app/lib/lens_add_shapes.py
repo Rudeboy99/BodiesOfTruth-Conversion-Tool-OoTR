@@ -18,10 +18,11 @@ def add_shapes(data, specs, renames=None, retex=None):
     blob=bytearray(); plan=[]
     for s in specs:
         if 'vbytes' in s:
-            io=[]
-            for idx in s['idx_lods']:
-                io.append(len(blob)); blob+=struct.pack('<%dH'%len(idx),*idx); blob+=bytes((-len(blob))%0x100)
-            vo=len(blob); blob+=s['vbytes']; blob+=bytes((-len(blob))%0x100); plan.append((io,vo))
+            io=[]; fv0=[]
+            for idx in s['idx_lods']:     # u16 indices relative to a per-LOD base vertex (as vanilla does), so meshes > 65535 verts fit
+                f0=min(idx) if idx else 0; assert not idx or max(idx)-f0<65536,'LOD spans more than 65535 vertices'
+                io.append(len(blob)); fv0.append(f0); blob+=struct.pack('<%dH'%len(idx),*[x-f0 for x in idx]); blob+=bytes((-len(blob))%0x100)
+            vo=len(blob); blob+=s['vbytes']; blob+=bytes((-len(blob))%0x100); plan.append((io,vo,fv0))
         else: plan.append(None)
     b=Bfres(data,delta=0x2000*(2+len(specs)),gpu=bytes(blob)); d=b.d; base=b.gpu_off or 0
     reloc={l:s for s,l in bf.rlt_locs(bytes(d))[3]}
@@ -65,9 +66,9 @@ def add_shapes(data, specs, renames=None, retex=None):
                 if nm_ in s['attr_fmt']: f=s['attr_fmt'][nm_]; d[nap+0x10*a+8]=f>>8; d[nap+0x10*a+9]=f&0xff
             struct.pack_into('<Q',d,fv+8,nap)
         if plan[j]:
-            io,vo=plan[j]; nvert=s['nvert']; assert len(s['vbytes'])==stride*nvert
+            io,vo,fv0=plan[j]; nvert=s['nvert']; assert len(s['vbytes'])==stride*nvert
             struct.pack_into('<I',d,fv+0x48,base+vo); struct.pack_into('<I',d,fv+0x50,nvert)
-            size=len(s['vbytes']); lods=[(base+io[x],len(s['idx_lods'][x]),0) for x in range(len(io))]
+            size=len(s['vbytes']); lods=[(base+io[x],len(s['idx_lods'][x]),fv0[x]) for x in range(len(io))]
         else:
             size=struct.unpack_from('<I',d,u64(d,tvb+0x30))[0]; lods=s['lods']
         struct.pack_into('<Q',d,fv+0x30,b.put(struct.pack('<IIII',size,0,0,0)))
