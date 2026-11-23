@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-"""BodiesOfTruth V1.3.1: turn ordinary NPC outfit mods into Lens of Truth outfit swaps.
+"""BodiesOfTruth V1.3.2: turn ordinary NPC outfit mods into Lens of Truth outfit swaps.
 
   python BodiesOfTruth.py <input> [-o OUTPUT_MOD | --name NAME] [--game-files GAME_FILES] [--platform P] [--no-patch] [--dry-run]
   python BodiesOfTruth.py --list   [-o OUTPUT_MOD]          show what the output mod already contains
@@ -30,10 +30,10 @@ except ImportError as e:
     sys.exit('Missing Python package (%s). Run the one-time setup first:\n'
              '  Windows: start the tool with BodiesOfTruth_GUI.bat (or command-line\\BodiesOfTruth.bat); it sets them up\n'
              '  Linux:   start the tool with bash BodiesOfTruth_GUI_linux.sh (or bash command-line/BodiesOfTruth_linux.sh)'%e)
-import bfres_info, restbl, nup
+import bfres_info, restbl, nup, gamefiles
 from retarget_core import u64, skel
 from lens_add_shapes import add_shapes
-VERSION='BodiesOfTruth V1.3.1'
+VERSION='BodiesOfTruth V1.3.2'
 SETTINGS=os.path.join(ROOT,'settings.json')   # kept in the tool folder (delete it before sharing the tool)
 CONVERTED=os.path.join(ROOT,'Converted')
 NUP_CACHE=os.path.join(ROOT,'nup_cache')   # game files copied out of a .nup on demand; deleted when the tool exits
@@ -91,16 +91,18 @@ def show(p):
 def mod_name(rd):
     rd=os.path.abspath(rd); return os.path.basename(os.path.dirname(rd)) if os.path.basename(rd).lower()=='romfs' else os.path.basename(rd)
 def find_update(g):
-    """game files folder -> the update 131072 romfs, or None.
-    Accepts the folder holding base\\ and updates\\ (the documented choice), or a single complete romfs
-    already on update 131072 (e.g. an emulator RomFS dump) or the folder just above it,
-    or a .nup game archive (or a folder holding exactly one .nup): its files are copied out on demand into nup_cache."""
+    """game files folder -> the update 131072 romfs, or None (the reason is kept in FIND_MSG).
+    Any folder around the game files works (lib/gamefiles.py): the folder holding base\\ and updates\\,
+    updates\\, updates\\131072\\, its romfs\\ or exefs\\, a folder inside the romfs, a parent a few levels up,
+    or an emulator RomFS dump; the version is checked with exefs/main's build ID.
+    Or a .nup game archive (or a folder holding exactly one .nup): its files are copied out on demand into nup_cache."""
+    global FIND_MSG
     if not g: return None
     g=os.path.abspath(g)
-    full=lambda c:os.path.isfile(os.path.join(c,'Pack','ZsDic.pack.zs')) and os.path.isfile(os.path.join(c,*RESTBL.split('/')))
-    if os.path.isdir(g):
-        for c in sorted(glob.glob(os.path.join(glob.escape(g),'updates','*','romfs')))+[g,os.path.join(g,'romfs')]:
-            if full(c): return os.path.normpath(c)
+    p,FIND_MSG=gamefiles.find_game_romfs(g)
+    if p:
+        print('  game files: %s (%s)'%(gamefiles.describe(p),FIND_MSG),flush=True)
+        return os.path.normpath(p)
     n=nup.find_nup(g)
     if n:
         try:
@@ -109,12 +111,13 @@ def find_update(g):
             return nup.open_romfs(n,NUP_CACHE,want_version=131072,need=('Pack/ZsDic.pack.zs',RESTBL))
         except (nup.NupError,OSError) as e: red('  '+str(e))
     return None
+FIND_MSG=''
 def resolve_romfs(arg):
     """--game-files, then OOT_GAME_FILES, then settings.json in the tool folder, then ask once and remember"""
     for g in (arg,os.environ.get('OOT_GAME_FILES')):
         if g:
             p=find_update(g)
-            if not p: sys.exit('Game files for update 131072 not found in: '+g)
+            if not p: sys.exit('Game files for update 131072 not found in: %s (%s)'%(g,FIND_MSG))
             return p
     try: p=find_update(json.load(open(SETTINGS,encoding='utf-8')).get('game_files'))
     except (OSError,ValueError,AttributeError): p=None
@@ -125,8 +128,11 @@ def resolve_romfs(arg):
         g=clean_path(input('game files folder: '))
         p=find_update(g)
         if p: break
-        print('  update 131072 game files not found there (need the folder holding your extracted game files, or a .NUP file), try again')
-    json.dump({'game_files':os.path.abspath(g)},open(SETTINGS,'w',encoding='utf-8'))
+        print('  %s (pick the folder holding your extracted game files, any folder around them, or a .NUP file), try again'%FIND_MSG)
+    try: s=json.load(open(SETTINGS,encoding='utf-8'))   # keep the GUI's own keys
+    except (OSError,ValueError): s={}
+    s=s if isinstance(s,dict) else {}; s['game_files']=os.path.abspath(g)
+    json.dump(s,open(SETTINGS,'w',encoding='utf-8'),indent=1)
     print('  remembered for next time (delete settings.json in the tool folder to change it)'); return p
 def log(*a,color=None):
     s=' '.join(str(x) for x in a); OUT_LINES.append(re.sub(r'\033\[\d+m','',s))   # the report gets plain text

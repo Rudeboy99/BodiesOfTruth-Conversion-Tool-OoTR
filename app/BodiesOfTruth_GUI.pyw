@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-"""BodiesOfTruth V1.3.1 GUI: a window around the BodiesOfTruth converter (BodiesOfTruth.py).
+"""BodiesOfTruth V1.3.2 GUI: a window around the BodiesOfTruth converter (BodiesOfTruth.py).
 
 The GUI does no converting itself. It runs BodiesOfTruth.py with the options picked in the window, shows its output
 live, and reads the converted mod's manifest (bodiesoftruth_manifest.json) and report (BodiesOfTruth_report.txt) to show
@@ -13,9 +13,11 @@ command line.
 Both set up Python packages by themselves on first run (lib/bootstrap.py).
 """
 import os, sys, json, glob, re, subprocess, threading, queue, time
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
+import gamefiles                           # the converter's own game-files finder (standard library only)
 sys.dont_write_bytecode = True            # no __pycache__ in the tool folder (it would embed this PC's folder paths)
 
-GUI_VERSION = 'BodiesOfTruth V1.3.1'
+GUI_VERSION = 'BodiesOfTruth V1.3.2'
 HERE = os.path.dirname(os.path.abspath(__file__))          # app/: the program files
 ROOT = os.path.dirname(HERE)                                # the tool's top folder: settings.json, Converted
 CONVERTER = os.path.join(HERE, 'BodiesOfTruth.py')
@@ -72,20 +74,14 @@ def rel_show(p):
     return os.path.join(*p.split('/'))
 
 def check_game_files(g):
-    """(ok, message): mirrors find_update() in BodiesOfTruth.py without opening anything"""
+    """(ok, message): the same search as the converter (lib/gamefiles.py), plus .nup game files"""
     if not g: return False, 'not set'
     g = os.path.abspath(g)
-    full = lambda c: os.path.isfile(os.path.join(c, 'Pack', 'ZsDic.pack.zs')) and os.path.isfile(os.path.join(c, *RESTBL.split('/')))
-    if os.path.isfile(g):
-        return (True, '.nup game file (conversion may be slower)') if g.lower().endswith('.nup') else (False, 'not a .nup file')
-    if not os.path.isdir(g): return False, 'folder not found'
-    for c in sorted(glob.glob(os.path.join(glob.escape(g), 'updates', '*', 'romfs'))) + [g, os.path.join(g, 'romfs')]:
-        if full(c):
-            ver = os.path.basename(os.path.dirname(c))
-            if ver.isdigit() and ver != '131072': return False, 'found update %s, need 131072' % ver
-            return True, 'update 131072 found'
-    if len(glob.glob(os.path.join(glob.escape(g), '*.nup'))) == 1: return True, '.nup game file (conversion may be slower)'
-    return False, 'update 131072 game files not found here'
+    if os.path.isfile(g) and g.lower().endswith('.nup'): return True, '.nup game file (conversion may be slower)'
+    p, msg = gamefiles.find_game_romfs(g)
+    if p: return True, '%s: %s' % (msg, gamefiles.describe(p))
+    if os.path.isdir(g) and len(glob.glob(os.path.join(glob.escape(g), '*.nup'))) == 1: return True, '.nup game file (conversion may be slower)'
+    return False, msg
 
 def find_romfs(inp):
     """same discovery as BodiesOfTruth.py: the input itself, or every romfs folder up to 4 levels down"""
@@ -254,7 +250,7 @@ if tk:
             self.v_nopatch = tk.BooleanVar(value=False)
             self.v_status = tk.StringVar(value='Ready')
             self.build()
-            for v in (self.v_game,): v.trace_add('write', lambda *a: self.update_game_status())
+            self.v_game.trace_add('write', lambda *a: self.schedule_game_check())
             self.v_input.trace_add('write', lambda *a: self.schedule_preview())
             self.v_name.trace_add('write', lambda *a: self.refresh_converted())
             self.v_platform.trace_add('write', lambda *a: self.update_platform_note())
@@ -325,7 +321,7 @@ if tk:
             r = self.root
             top = ttk.Frame(r, padding=(16, 12, 16, 6)); top.pack(fill='x')
             ttk.Label(top, text='Bodies of Truth', style='Title.TLabel').pack(side='left')
-            ttk.Label(top, text='V1.3.1', style='Ver.TLabel').pack(side='left', padx=(10, 0), pady=(4, 0))
+            ttk.Label(top, text='V1.3.2', style='Ver.TLabel').pack(side='left', padx=(10, 0), pady=(4, 0))
             ttk.Label(top, text='   NPC outfit mod  ->  second outfit seen only through the Lens of Truth',
                       style='Sub.TLabel').pack(side='left', pady=(5, 0))
 
@@ -339,7 +335,7 @@ if tk:
             ttk.Entry(p, textvariable=self.v_game, width=26).grid(row=1, column=0, sticky='ew')
             ttk.Button(p, text='Folder', width=7, command=self.pick_game).grid(row=1, column=1, padx=(6, 0))
             ttk.Button(p, text='.nup', width=5, command=self.pick_nup).grid(row=1, column=2, padx=(4, 0))
-            self.l_game = ttk.Label(p, text='', style='Dim.TLabel'); self.l_game.grid(row=2, column=0, columnspan=3, sticky='w', pady=(5, 0))
+            self.l_game = ttk.Label(p, text='', style='Dim.TLabel', wraplength=330, justify='left'); self.l_game.grid(row=2, column=0, columnspan=3, sticky='w', pady=(5, 0))
 
             # platform
             p = self.panel(left, 'Platform'); p.pack(fill='x', pady=(0, 6))
@@ -419,7 +415,13 @@ if tk:
         def set_text(self, t, s):
             t.configure(state='normal'); t.delete('1.0', 'end'); t.insert('end', s); t.configure(state='disabled')
 
+        def schedule_game_check(self):
+            if getattr(self, '_game_job', None): self.root.after_cancel(self._game_job)
+            self.l_game.configure(text='checking...', style='Dim.TLabel')
+            self._game_job = self.root.after(450, self.update_game_status)
+
         def update_game_status(self):
+            self._game_job = None
             ok, msg = check_game_files(clean_path(self.v_game.get()))
             self.l_game.configure(text=('OK: ' if ok else 'X  ') + msg, style='Ok.TLabel' if ok else 'Bad.TLabel')
             return ok

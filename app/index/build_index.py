@@ -10,11 +10,10 @@ HERE=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,os.path.join(
 from zsx import Zs, sarc_files
 import bfres_info
 from retarget_core import skel
-def _update(g):   # game files folder (base + updates) or an update romfs -> update romfs
+import gamefiles
+def _update(g):   # any folder around the game files -> the update 131072 romfs (same search as the converter)
     if not g: return None
-    for c in sorted(glob.glob(os.path.join(g,'updates','*','romfs')))+[g,os.path.join(g,'romfs')]:
-        if os.path.isfile(os.path.join(c,'Pack','ZsDic.pack.zs')) and glob.glob(os.path.join(c,'System','Resource','*.Product.111.*')): return c
-    return None
+    return gamefiles.find_game_romfs(g)[0]
 def _remembered():
     try: return json.load(open(os.path.join(HERE,'..','..','settings.json'),encoding='utf-8')).get('game_files')
     except (OSError,ValueError,AttributeError): return None

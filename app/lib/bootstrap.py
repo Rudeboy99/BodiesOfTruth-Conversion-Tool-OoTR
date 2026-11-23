@@ -5,6 +5,7 @@
   python app/lib/bootstrap.py gui   [mod folder]       set up if needed, then open the GUI
   python app/lib/bootstrap.py cli   [converter args]   set up if needed, then run BodiesOfTruth.py in this console
   python app/lib/bootstrap.py setup                    set up (or repair) only
+  python app/lib/bootstrap.py check [gui]              exit 0 if set up (and, with gui, Tkinter works); prints nothing
 
 Setup = the tool's own Python environment outside the tool folder, with the tested package versions:
   Windows  %LOCALAPPDATA%\\BodiesOfTruth\\venv
@@ -98,6 +99,10 @@ def tk_missing_help():
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else 'setup'
     args = sys.argv[2:]
+    if mode == 'check':          # used by the Linux launcher to decide whether a terminal is needed
+        ok = sys.version_info >= MIN_PY and ready(wanted())
+        if ok and 'gui' in args: ok = run_quiet([env_python(), '-c', 'import tkinter; tkinter.Tcl()'])
+        sys.exit(0 if ok else 1)
     setup()
     if mode == 'setup': return
     if mode == 'cli':
@@ -108,6 +113,10 @@ def main():
         if WIN:   # windowed Python, detached: the console window can close
             subprocess.Popen([env_python(windowed=True), gui] + args, cwd=TOOL, close_fds=True,
                              creationflags=0x00000008 | 0x00000200)   # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+            return
+        if os.environ.get('BOT_DETACH'):   # opened by a double-click: the window lives on after the launcher exits
+            subprocess.Popen([env_python(), gui] + args, cwd=TOOL, start_new_session=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return
         os.execv(env_python(), [env_python(), gui] + args)
     fail('unknown mode: ' + mode)
