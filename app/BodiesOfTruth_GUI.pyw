@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-"""BodiesOfTruth V1.3.3 GUI: a window around the BodiesOfTruth converter (BodiesOfTruth.py).
+"""BodiesOfTruth V1.4 GUI: a window around the BodiesOfTruth converter (BodiesOfTruth.py).
 
 The GUI does no converting itself. It runs BodiesOfTruth.py with the options picked in the window, shows its output
 live, and reads the converted mod's manifest (bodiesoftruth_manifest.json) and report (BodiesOfTruth_report.txt) to show
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib
 import gamefiles                           # the converter's own game-files finder (standard library only)
 sys.dont_write_bytecode = True            # no __pycache__ in the tool folder (it would embed this PC's folder paths)
 
-GUI_VERSION = 'BodiesOfTruth V1.3.3'
+GUI_VERSION = 'BodiesOfTruth V1.4'
 HERE = os.path.dirname(os.path.abspath(__file__))          # app/: the program files
 ROOT = os.path.dirname(HERE)                                # the tool's top folder: settings.json, Converted
 CONVERTER = os.path.join(HERE, 'BodiesOfTruth.py')
@@ -172,7 +172,7 @@ def python_for_child():
         if os.path.isfile(alt): return alt
     return exe
 
-def build_command(action, game_files, platform, name, inp=None, dry_run=False, keep_cloth=False, no_patch=False, remove=None):
+def build_command(action, game_files, platform, name, inp=None, dry_run=False, keep_cloth=False, no_patch=False, remove=None, base=None):
     """the BodiesOfTruth.py command line for one GUI action ('convert', 'remove' or 'list')"""
     cmd = [python_for_child(), '-u', CONVERTER]
     if action == 'convert': cmd.append(inp)
@@ -184,6 +184,7 @@ def build_command(action, game_files, platform, name, inp=None, dry_run=False, k
     if action == 'convert':
         if dry_run: cmd.append('--dry-run')
         if keep_cloth: cmd.append('--keep-cloth-weights')
+        if base: cmd += ['--base', base]
     if no_patch and action != 'list': cmd.append('--no-patch')
     return cmd
 
@@ -245,6 +246,7 @@ if tk:
             self.v_platform = tk.StringVar(value=s.get('gui_platform', 'emulation'))
             self.v_input = tk.StringVar(value=initial_input or s.get('gui_last_input', ''))
             self.v_name = tk.StringVar(value=s.get('gui_output_name', DEFAULT_NAME))
+            self.v_base = tk.StringVar(value=s.get('gui_last_base', ''))
             self.v_dry = tk.BooleanVar(value=False)
             self.v_cloth = tk.BooleanVar(value=False)
             self.v_nopatch = tk.BooleanVar(value=False)
@@ -321,7 +323,7 @@ if tk:
             r = self.root
             top = ttk.Frame(r, padding=(16, 12, 16, 6)); top.pack(fill='x')
             ttk.Label(top, text='Bodies of Truth', style='Title.TLabel').pack(side='left')
-            ttk.Label(top, text='V1.3.3', style='Ver.TLabel').pack(side='left', padx=(10, 0), pady=(4, 0))
+            ttk.Label(top, text='V1.4', style='Ver.TLabel').pack(side='left', padx=(10, 0), pady=(4, 0))
             ttk.Label(top, text='   NPC outfit mod  ->  second outfit seen only through the Lens of Truth',
                       style='Sub.TLabel').pack(side='left', pady=(5, 0))
 
@@ -352,6 +354,14 @@ if tk:
                       style='Dim.TLabel', wraplength=320, justify='left').grid(row=2, column=0, columnspan=2, sticky='w', pady=(3, 3))
             self.t_prev, sbp = self.textbox(p, height=5, width=40)
             self.t_prev.grid(row=3, column=0, columnspan=2, sticky='ew'); sbp.grid(row=3, column=2, sticky='ns')
+
+            # base mod (optional)
+            p = self.panel(left, 'Base mod (optional): outfit outside the lens'); p.pack(fill='x', pady=(0, 6))
+            ttk.Entry(p, textvariable=self.v_base, width=32).grid(row=1, column=0, sticky='ew')
+            ttk.Button(p, text='Browse', width=7, command=self.pick_base).grid(row=1, column=1, padx=(6, 0))
+            ttk.Button(p, text='Clear', width=5, command=lambda: self.v_base.set('')).grid(row=1, column=2, padx=(4, 0))
+            ttk.Label(p, text='Empty = vanilla outside the lens. Set = the NPC wears this mod normally and the mod above inside the lens.',
+                      style='Dim.TLabel', wraplength=320, justify='left').grid(row=2, column=0, columnspan=3, sticky='w', pady=(3, 0))
 
             # output + options
             p = self.panel(left, 'Output'); p.pack(fill='x', pady=(0, 6))
@@ -511,6 +521,11 @@ if tk:
             d = filedialog.askdirectory(title='Mod folder (or folder of mods) to convert',
                                         initialdir=os.path.dirname(cur) if cur else os.path.dirname(ROOT))
             if d: self.v_input.set(os.path.normpath(d))
+        def pick_base(self):
+            cur = clean_path(self.v_base.get()) or clean_path(self.v_input.get())
+            d = filedialog.askdirectory(title='Base mod: the outfit worn outside the lens',
+                                        initialdir=os.path.dirname(cur) if cur else os.path.dirname(ROOT))
+            if d: self.v_base.set(os.path.normpath(d))
         def open(self, p):
             if not open_path(p): messagebox.showinfo(GUI_VERSION, 'Not there yet:\n' + p)
 
@@ -572,9 +587,12 @@ if tk:
                 messagebox.showerror(GUI_VERSION, 'Choose the mod folder to convert.'); return
             if not find_romfs(inp):
                 messagebox.showerror(GUI_VERSION, 'No romfs folder found in:\n' + inp); return
-            save_settings(gui_last_input=inp)
+            base = clean_path(self.v_base.get())
+            if base and not (os.path.isdir(base) and find_romfs(base)):
+                messagebox.showerror(GUI_VERSION, 'Base mod: no romfs folder found in:\n' + base); return
+            save_settings(gui_last_input=inp, gui_last_base=base)
             cmd = build_command('convert', g, self.v_platform.get(), name, inp=inp, dry_run=self.v_dry.get(),
-                                keep_cloth=self.v_cloth.get(), no_patch=self.v_nopatch.get())
+                                keep_cloth=self.v_cloth.get(), no_patch=self.v_nopatch.get(), base=base or None)
             self.run(cmd, 'convert')
 
         def remove_selected(self):

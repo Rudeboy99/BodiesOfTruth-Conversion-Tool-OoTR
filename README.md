@@ -1,7 +1,7 @@
 # BodiesOfTruth-Conversion-Tool-OoTR
 OoTRemake mod converter and lens patch for custom outfit switching effects
 
-## LENS OUTFIT CONVERTER (BodiesOfTruth V1.3.3) Emulation/Recomp
+## LENS OUTFIT CONVERTER Emulation/Recomp
 
 Turns an NPC(NOT PLAYER) outfit mod into a SECOND OUTFIT that only appears through
 the Lens of Truth.
@@ -11,19 +11,19 @@ the Lens of Truth.
 | **Without the lens** | the NPC wears their normal outfit. |
 | **Through the lens** | the NPC wears the modded outfit. |
 
+Optionally pick a **base mod**: the NPC then wears that mod's outfit without the
+lens, instead of their normal one.
 
-## 0. GUI (NEW IN V1.3)
+
+## 0. GUI
 
 The same converter in a window. It works the same way on Windows and
 Linux, and writes exactly what the command line writes (it runs
 `BodiesOfTruth.py` for you).
 
-**V1.3.1: one-click start.** Double-click `BodiesOfTruth_GUI.bat` (Windows) or
+**One-click start.** Double-click `BodiesOfTruth_GUI.bat` (Windows) or
 run `bash BodiesOfTruth_GUI_linux.sh` (Linux). The first start sets everything
 up by itself (about a minute, internet needed); later starts open straight away.
-
-**V1.3.3: big meshes fixed.** Vanilla pieces with more than 65,535 vertices (e.g. the
-Great Fairy's leaf dress) were dropped from the lens-off outfit; they are now kept.
 
 
 ## 1. USAGE
@@ -73,6 +73,12 @@ You can drag in:
 Converting another mod later ADDS it to the same converted mod.
 Converting the same NPC again replaces its earlier version.
 
+**Base mod (optional).** In the GUI's "Base mod" box (or with `--base`), pick
+another outfit mod for the same NPC. Without the lens the NPC wears the base
+mod's outfit; through the lens they wear the converted mod. Leave it empty for
+the NPC's normal outfit. The base mod is merged into the converted folder, so
+disable the base mod itself when playing.
+
 
 ## 2a. INSTALL (Emulation)
 
@@ -120,6 +126,15 @@ Lens of Truth.
 Many NPCs share textures. The modded textures get their own names,
 so only the converted NPC changes.
 
+**Base mod outfits**<br>
+The converted mod is the model both outfits are built on; the base mod's
+pieces are added to it. A base piece is left out (and listed in the run log)
+if the converted mod lacks its material, a bone it uses, or a matching vertex
+layout. Base mod textures get their own names too. Files that both mods ship
+(e.g. cloth physics) come from the converted mod. Base mods that edit the
+normal model work best; for a full body replacement, use it as the converted
+mod and run a dry run first.
+
 **Each outfit moves on its own**<br>
 Physics such as jiggle bones added by the mod apply only to the lens
 outfit. If the modded outfit removes something like cloth, its
@@ -149,6 +164,7 @@ Open a command prompt in this folder and type one of these. On Linux use
 | `command-line\BodiesOfTruth.bat "path\to\mod"` | Convert a mod (same as drag and drop). |
 | `command-line\BodiesOfTruth.bat --list` | Show which NPCs are in the converted mod. |
 | `command-line\BodiesOfTruth.bat --remove NAME` | Take one NPC back out. Example: `command-line\BodiesOfTruth.bat --remove Npc_Gerudo_GEN_001` |
+| `command-line\BodiesOfTruth.bat "path\to\mod" --base "path\to\base mod"` | Without the lens, show the base mod's outfit instead of the normal one. |
 | `command-line\BodiesOfTruth.bat "path\to\mod" --name "My Mod"` | Save the models to a different folder inside Converted (the lens patch still goes to `Converted\LensPatch`). |
 | `command-line\BodiesOfTruth.bat "path\to\mod" --dry-run` | Preview what would happen, without writing anything. |
 | `command-line\BodiesOfTruth.bat "path\to\mod" --keep-cloth-weights` | Let the lens outfit keep following the original cloth physics. |

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 BodiesOfTruth contributors. See LICENSE.txt and CREDITS.txt.
-"""BodiesOfTruth V1.3.3: turn ordinary NPC outfit mods into Lens of Truth outfit swaps.
+"""BodiesOfTruth V1.4: turn ordinary NPC outfit mods into Lens of Truth outfit swaps.
 
-  python BodiesOfTruth.py <input> [-o OUTPUT_MOD | --name NAME] [--game-files GAME_FILES] [--platform P] [--no-patch] [--dry-run]
+  python BodiesOfTruth.py <input> [--base BASE_MOD] [-o OUTPUT_MOD | --name NAME] [--game-files GAME_FILES] [--platform P] [--no-patch] [--dry-run]
   python BodiesOfTruth.py --list   [-o OUTPUT_MOD]          show what the output mod already contains
   python BodiesOfTruth.py --remove MODEL [-o OUTPUT_MOD]    take one model back out (e.g. Npc_Gerudo_GEN_001)
 
 <input> = a mod folder (contains romfs/), a pack of mod folders (each with romfs/), or a romfs folder.
 Every model in the input that replaces a vanilla NPC model (romfs/Model/<Project>.<Fmdb>.bfres.zs) becomes that
 NPC's 2nd outfit: outside the lens the NPC looks vanilla, inside the Lens of Truth iris it shows the modded outfit.
+--base BASE_MOD: outside the lens the NPC wears BASE_MOD's outfit instead of vanilla (a mod folder or a
+folder of mods, like <input>). Only base models for NPCs that <input> also converts are used.
 Output: two mod folders next to each other (default: in <tool folder>/Converted):
   BodiesOfTruth - Custom   every converted model, texture and pack, with one shared RESTBL (romfs only)
   LensPatch                the Lens of Truth code patch for the chosen platform (exefs only)
@@ -33,7 +35,7 @@ except ImportError as e:
 import bfres_info, restbl, nup, gamefiles
 from retarget_core import u64, skel
 from lens_add_shapes import add_shapes
-VERSION='BodiesOfTruth V1.3.3'
+VERSION='BodiesOfTruth V1.4'
 SETTINGS=os.path.join(ROOT,'settings.json')   # kept in the tool folder (delete it before sharing the tool)
 CONVERTED=os.path.join(ROOT,'Converted')
 NUP_CACHE=os.path.join(ROOT,'nup_cache')   # game files copied out of a .nup on demand; deleted when the tool exits
@@ -274,6 +276,22 @@ def scan_inputs(ctx,inp):
     texonly={r for lst in textures.values() for r,_ in lst}-{j['romfs'] for j in jobs.values()}
     for j in jobs.values(): j['texonly']=texonly
     return jobs,passthru,textures
+def scan_base(ctx,base,jobs):
+    """--base: the outfit worn OUTSIDE the lens. -> models {key: (path, romfs)}, textures {name: path}, other files {rel: path}"""
+    models={}; textures={}; other={}
+    for rd in find_romfs(base):
+        for root,_,files in os.walk(rd):
+            for f in sorted(files):
+                p=os.path.join(root,f); rel=os.path.relpath(p,rd).replace(os.sep,'/')
+                if rel.startswith('System/Resource/') and 'rsizetable' in rel: continue
+                if rel.startswith('Model/') and rel.endswith('.bfres.zs') and '.anim.' not in rel and '.Skeleton.' not in rel and ctx.game(rel):
+                    key=f[:-9]
+                    if key not in jobs: log('  base: %s has no lens outfit in the input; ignored'%key); continue
+                    if key in models: log('  ! base: %s appears in two base mods; using the one from %s'%(key,mod_name(rd)))
+                    models[key]=(p,rd); continue
+                if rel.startswith('Tex/') and f.endswith('.bntx.zs'): textures[f[:-8]]=p; continue
+                other[rel]=p
+    return models,textures,other
 def pick_texture(lst,romfs):
     for r,p in lst:
         if r==romfs: return p
@@ -285,7 +303,11 @@ def build_model(ctx,job,textures,tex_names):
     key=job['key']; ent=ctx.models.get(key)
     log('\n== %s%s'%(key,'' if ent else '  (not in the NPC index: building from the game file directly)'))
     if ent and ent.get('actors'): log('   actors: '+', '.join(ent['actors']))
-    db=ctx.zs.read(ctx.game('Model/%s.bfres.zs'%key)); da=bytearray(ctx.zs.read(job['path']))
+    dv=ctx.zs.read(ctx.game('Model/%s.bfres.zs'%key)); da=bytearray(ctx.zs.read(job['path']))
+    base=job.get('base'); btex=job.get('base_tex') or {}   # --base: base model = the outfit outside the lens
+    db=ctx.zs.read(base[0]) if base else dv
+    if base: log('   base (outside the lens): %s'%mod_name(base[1]))
+    VAN='the base' if base else 'vanilla'
     kb,ka=skel(db),skel(da)
     an={n:i for i,n in enumerate(ka['names'])}; bmap=np.array([an.get(n,-1) for n in kb['names']])
     nsB=sum(1 for s in kb['sm'] if s>=0); nsA=sum(1 for s in ka['sm'] if s>=0)
@@ -293,9 +315,9 @@ def build_model(ctx,job,textures,tex_names):
     mmap=np.array([am.get((int(bmap[b]),m<nsB),-1) if bmap[b]>=0 else -1 for m,b in enumerate(kb['m2b'])])
     vset=set(kb['names']); miss=[n for n in kb['names'] if n not in an]; added=[n for n in ka['names'] if n not in vset]
     moved=[kb['names'][i] for i in range(len(kb['names'])) if bmap[i]>=0 and np.abs(kb['W'][i]-ka['W'][bmap[i]]).max()>1e-3]
-    log('   skeleton: vanilla %d bones, mod %d%s%s%s'%(len(kb['names']),len(ka['names']),'; added '+', '.join(added) if added else '',
+    log('   skeleton: %s %d bones, mod %d%s%s%s'%(VAN,len(kb['names']),len(ka['names']),'; added '+', '.join(added) if added else '',
         '; MISSING '+', '.join(miss[:8]) if miss else '','; bind pose moved: '+', '.join(moved[:8]) if moved else ''))
-    if moved: log('   ! the mod moved bones: vanilla pieces (outside the lens) may look distorted')
+    if moved: log('   ! the mod moved bones: %s pieces (outside the lens) may look distorted'%VAN)
     sb={s['name']:s for s in bfres_info.shapes(db)}; sa={s['name']:s for s in bfres_info.shapes(da)}
     mB={m['name']:m['textures'] for m in bfres_info.materials(db)}; mA={m['name']:m['textures'] for m in bfres_info.materials(da)}
     # re-authored textures that apply: those shipped next to this model, plus texture-only mod folders in the input
@@ -315,15 +337,25 @@ def build_model(ctx,job,textures,tex_names):
     gone=[n for n in sb if n not in sa]
     affected={sa[n]['material'] for n,s in status.items() if s!='same'}
     affected|={m for m,t in mA.items() if set(t)&alt_tex}
+    affected|={m for m,t in mA.items() if set(t)&set(btex)}   # base re-authored a texture the lens outfit uses as-is
     affected|={m for m in mA if m in mB and mA[m]!=mB[m]}
     affected|={sb[n]['material'] for n in gone if sb[n]['material'] in mA}
-    if not affected: log('   nothing differs from vanilla: skipped'); return None
-    if not ctx.keep_cloth: detach_lens_outfit(ctx,job,da,db,ka,kb,sa,sb,affected)
+    if not affected: log('   nothing differs from %s: skipped'%VAN); return None
+    if not ctx.keep_cloth:   # cloth check always against the game model (a base that removed pieces must not strip the lens outfit's physics)
+        if base: detach_lens_outfit(ctx,job,da,dv,ka,skel(dv),sa,{s['name']:s for s in bfres_info.shapes(dv)},affected)
+        else: detach_lens_outfit(ctx,job,da,db,ka,kb,sa,sb,affected)
     tag=(ent or {}).get('tex_tag') or 'LZZ_'
     def tagged(t):
         new=t.replace('Npc_',tag,1) if 'Npc_' in t else tag+t[4:]
         assert len(new)==len(t); return new
     used=set(mA)|set(sa)
+    btag='B'+tag[1:]                          # base textures get their own tag (B..), lens ones keep L..
+    def tagged_b(t):
+        new=t.replace('Npc_',btag,1) if 'Npc_' in t else btag+t[4:]
+        assert len(new)==len(t); return new
+    def base_tex(t):
+        if t not in btex: return t
+        src=btex[t]; h=md5f(src); new=tex_names.get(('B',t,h)) or tagged_b(t); tex_names[('B',t,h)]=new; tex_out[new]=(t,src); return new
     def uniq(name):
         n,i=name,2
         while n in used: n='%s_%d'%(name,i); i+=1
@@ -342,25 +374,28 @@ def build_model(ctx,job,textures,tex_names):
     for n,b in sorted(sb.items(),key=lambda x:x[1]['index']):
         X=b['material']
         if X not in affected or b['verts']<=1: continue
-        if X not in mA: log('   ! %s: its material %s is not in the mod; vanilla piece dropped'%(n,X)); continue
+        if X not in mA: log('   ! %s: its material %s is not in the mod; %s piece dropped'%(n,X,VAN)); continue
         if X not in l0mat: l0mat[X]=uniq(l_name('L0_',X))
         sp=dict(tmpl_mat=X,mat=l0mat[X],name=uniq(n.split('__')[0]+'__'+l0mat[X]))
+        tb=mA[X]
         if X in mB and mA[X]!=mB[X]:
-            if len(mA[X])==len(mB[X]): sp['tex_map']={x:y for x,y in zip(mA[X],mB[X]) if x!=y}
-            else: log('   ! %s: the mod changed the texture list of %s; vanilla copy keeps the mod list'%(n,X))
+            if len(mA[X])==len(mB[X]): tb=mB[X]
+            else: log('   ! %s: the mod changed the texture list of %s; %s copy keeps the mod list'%(n,X,VAN))
+        tm_={x:y for x,y in zip(mA[X],[base_tex(t) for t in tb]) if x!=y}
+        if tm_: sp['tex_map']=tm_
         if n in sa and status[n]=='same':
             sp.update(tmpl_shape=n,lods=mesh_alias(da,sa[n]['index'])); kind='alias'
         else:
             lk=bfres_info.layout_key(b)
             tm=n if n in sa and bfres_info.layout_key(sa[n])==lk else next((s for s in sa if bfres_info.layout_key(sa[s])==lk),None)
-            if tm is None: log('   ! %s: no shape with the same vertex layout in the mod; vanilla piece dropped'%n); continue
+            if tm is None: log('   ! %s: no shape with the same vertex layout in the mod; %s piece dropped'%(n,VAN)); continue
             try:
                 _,nv,lods,ks=raw_shape(db,b['index'])
                 if ks: raise ValueError('has key shapes')
                 if any(l and max(l)-min(l)>=65536 for l in lods): raise ValueError('a LOD spans more than 65535 vertices')
                 vr=vb_cache.get(n) or remap_indices(raw_shape(db,b['index'])[0],b,mmap)
                 bd=shape_bounds(db,b['index'],bmap,len(lods))
-            except ValueError as e: log('   ! %s: %s; vanilla piece dropped'%(n,e)); continue
+            except ValueError as e: log('   ! %s: %s; %s piece dropped'%(n,e,VAN)); continue
             sp.update(tmpl_shape=tm,vbytes=vr,nvert=nv,idx_lods=lods,bounds=bd); kind='copy'
         specs.append(sp); lines.append('   L0 %-5s %-46s -> %s'%(kind,n,sp['mat']))
     why={'same':'same mesh','changed':'changed mesh','removed':'emptied by the mod','new':'new in the mod'}
@@ -371,8 +406,10 @@ def build_model(ctx,job,textures,tex_names):
     model=add_shapes(da,specs,renames=ren,retex=retex)
     verify(model,da,specs,ren,retex)
     nsh=struct.unpack_from('<H',model,0xf0+0x6a)[0]
-    log('   model %d -> %d bytes, %d shapes (%d vanilla pieces added), %d textures renamed'%(len(db),len(model),nsh,len(specs),len(tex_out)))
-    return dict(key=key,model=model,db_size=len(db),added=len(specs),tex_out=tex_out,l0=l0mat,l1=ren)
+    log('   model %d -> %d bytes, %d shapes (%d %s pieces added), %d textures renamed'%(len(db),len(model),nsh,len(specs),'base' if base else 'vanilla',len(tex_out)))
+    r=dict(key=key,model=model,db_size=len(db),added=len(specs),tex_out=tex_out,l0=l0mat,l1=ren)
+    if base: r.update(base=mod_name(base[1]),van_size=len(dv),extra_shapes=max(0,nsh-len(bfres_info.shapes(dv))))
+    return r
 def detach_lens_outfit(ctx,job,da,db,ka,kb,sa,sb,affected):
     """Give the lens outfit its own bone setup: its meshes stop following cloth-sim bones that only exist for vanilla
     pieces the mod removed (e.g. bare thighs weighted to the pants sim). Weight moves to the nearest unsimulated parent.
@@ -520,7 +557,7 @@ def run(args):
     if args.list:
         print('Output: %s'%show(out)); ld=lens_dir(out)
         print('Lens patch: %s%s'%(show(ld),' (%s)'%PLATFORMS[man['platform']][0] if man.get('platform') in PLATFORMS and os.path.isdir(ld) else ' (not written yet)'))
-        for k,m in sorted(man['models'].items()): print('  %-58s from %s (%s)'%(k,m['mod'],m['built']))
+        for k,m in sorted(man['models'].items()): print('  %-58s from %s%s (%s)'%(k,m['mod'],', base '+m['base'] if m.get('base') else '',m['built']))
         for r in sorted(man['passthrough']): print('  file  %s'%r)
         return
     if args.remove:
@@ -531,7 +568,8 @@ def run(args):
             still={rel for m in man['models'].values() for rel in m['files']}
             for rel in gone['files']:
                 if rel not in still: rmfile(os.path.join(out,'romfs',*rel.split('/')))
-            if rd and not any(m.get('romfs')==rd for m in man['models'].values()):   # extra files that came with that mod
+            used={x for m in man['models'].values() for x in (m.get('romfs'),m.get('base'))}
+            for rd in [x for x in (rd,gone.get('base')) if x and x not in used]:   # extra files that came with that mod (or its base)
                 for rel in [r for r,m in man['passthrough'].items() if m.get('romfs')==rd]:
                     rmfile(os.path.join(out,'romfs',*rel.split('/'))); del man['passthrough'][rel]; log('removed '+rel)
             log('removed '+k)
@@ -542,6 +580,17 @@ def run(args):
     jobs,passthru,textures=scan_inputs(ctx,args.input)
     if not jobs: sys.exit('No vanilla model replacements (romfs/Model/<Project>.<Fmdb>.bfres.zs) found in '+args.input)
     log('models: '+', '.join(sorted(jobs)))
+    btex_all={}
+    if args.base:
+        log('base:   %s (outfit outside the lens)'%show(args.base))
+        bm,btex_all,bother=scan_base(ctx,args.base,jobs)
+        if not bm: sys.exit('No base model for the converted NPCs found in '+args.base)
+        for k in sorted(jobs):
+            if k in bm: jobs[k]['base']=bm[k]; jobs[k]['base_tex']=btex_all
+            else: log('  note: no base model for %s: vanilla outside the lens'%k)
+        for rel,p in sorted(bother.items()):
+            if rel in passthru: log('  note: %s is in both the input and the base; using the input one (it matches the converted skeleton)'%rel)
+            else: passthru[rel]=p
     tex_names={}
     for m in man['models'].values():          # reuse renamed copies of identical textures already in the output
         for new,(t,h) in m.get('tex_src',{}).items(): tex_names[(t,h)]=new
@@ -551,6 +600,7 @@ def run(args):
         except Exception as e: log('   !! FAILED: %s: %s'%(type(e).__name__,e)); continue
         if r: results.append((jobs[key],r))
     used_tex={t for _,r in results for (t,_) in r['tex_out'].values()}
+    for t in sorted(set(btex_all)-used_tex): log('  note: base texture %s is not used by any outside-the-lens piece: not shipped'%t)
     for t in sorted(set(textures)-used_tex): log('  note: input texture %s is not used by any swapped material: not shipped (it would change every NPC using it)'%t)
     if args.dry_run: log('\ndry run: nothing written'); return
     if not results: sys.exit('nothing to write')
@@ -562,13 +612,16 @@ def run(args):
                 if rel not in keep_tex: rmfile(os.path.join(out,'romfs',*rel.split('/')))
         files=[]; rv={}; tsrc={}
         rel='Model/%s.bfres.zs'%k; ctx.zs.write(os.path.join(out,'romfs','Model',k+'.bfres.zs'),r['model']); files.append(rel)
-        rv[rel]=rt_value(ctx,rel)+a32(len(r['model']))-a32(r['db_size'])+restbl.PER_ADDED_SHAPE*r['added']
+        if r.get('base'): rv[rel]=rt_value(ctx,rel)+a32(len(r['model']))-a32(r['van_size'])+restbl.PER_ADDED_SHAPE*r['extra_shapes']
+        else: rv[rel]=rt_value(ctx,rel)+a32(len(r['model']))-a32(r['db_size'])+restbl.PER_ADDED_SHAPE*r['added']
         for new,(t,src) in sorted(r['tex_out'].items()):
             rel='Tex/%s.bntx.zs'%new; dst=os.path.join(out,'romfs','Tex',new+'.bntx.zs')
             nd=rename_in_bntx(ctx.zs.read(src),t,new); ctx.zs.write(dst,nd)
             files.append(rel); rv[rel]=len(nd)+280; tsrc[new]=(t,md5f(src))
         man['models'][k]=dict(mod=mod_name(job['romfs']),romfs=mod_name(job['romfs']),built=time.strftime('%Y-%m-%d %H:%M'),files=files,restbl=rv,l0=r['l0'],l1=r['l1'],tex_src=tsrc)
-    pt_romfs={rel:next((mod_name(r) for r in find_romfs(args.input) if os.path.abspath(p).startswith(os.path.join(r,''))),'') for rel,p in passthru.items()}
+        if r.get('base'): man['models'][k]['base']=r['base']
+    all_romfs=find_romfs(args.input)+(find_romfs(args.base) if args.base else [])
+    pt_romfs={rel:next((mod_name(r) for r in all_romfs if os.path.abspath(p).startswith(os.path.join(r,''))),'') for rel,p in passthru.items()}
     for rel,p in sorted(passthru.items()):
         dst=os.path.join(out,'romfs',*rel.split('/')); os.makedirs(os.path.dirname(dst),exist_ok=True); shutil.copy(p,dst)
         v=rt_value(ctx,rel); val=None
@@ -595,6 +648,7 @@ def run(args):
 if __name__=='__main__':
     ap=argparse.ArgumentParser(description=VERSION,usage=__doc__)
     ap.add_argument('input',nargs='?'); ap.add_argument('-o','--output',default=None)
+    ap.add_argument('--base',default=None,help='mod whose outfit the NPC wears OUTSIDE the lens (instead of vanilla)')
     ap.add_argument('--name',default=None,help='model mod folder name inside the Converted folder (the lens patch goes next to it, in %s)'%LENS_NAME)
     ap.add_argument('--game-files','--romfs',dest='romfs',default=None,help='game files folder holding base and updates, or a .nup game file (asked once and remembered if omitted)')
     ap.add_argument('--no-patch',action='store_true'); ap.add_argument('--dry-run',action='store_true')
